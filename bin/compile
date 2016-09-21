@@ -33,6 +33,7 @@ DEFAULT_SWIFT_VERSION=3.0
 CLANG_VERSION=3.8.0
 compile_buildpack_dir=$(cd $(dirname $0); cd ..; pwd)
 compile_buildpack_bin=$compile_buildpack_dir/bin
+dependency_buildpack_dir=$compile_buildpack_dir/dependencies
 
 # Check environment support
 $compile_buildpack_dir/compile-extensions/bin/check_stack_support
@@ -181,8 +182,37 @@ rm -rf $BUILD_DIR/.build
 # Cleaning up the cache folder to speed up the upload to droplet step.
 # This has no impact on the execution of the buildpack since [at the moment]
 # we are not taking advantage of the CACHE_DIR folder.
+
 status "Cleaning up cache folder"
-rm -rf $CACHE_DIR/*
+
+for f in $(ls -1 $dependency_buildpack_dir); do
+  if [[ "$f" == *"$SWIFT_NAME_VERSION"* ]]; then
+    for cacheentry in $(ls -1 $CACHE_DIR); do
+      if [[ "$cacheentry" == *"$SWIFT_NAME_VERSION"* ]]; then
+        status "Built in Swift dependency is in the cache.  Need to remove it"
+        rm -rf "$CACHE_DIR"/"$cacheentry"
+        break
+      fi
+    done
+  fi
+done
+
+for f in $(ls -1 $dependency_buildpack_dir); do
+  status "$f"
+  if [[ "$f" == *"$CLANG_VERSION"* ]]; then
+    if  [[ "$f" == *"clang"* ]]; then
+      for cacheentry in $(ls -1 $CACHE_DIR); do
+        if [[ "$cacheentry" == *"$CLANG_VERSION"* ]]; then
+          if [[ "$cacheentry" == *"clang"* ]]; then
+            status "Built in Clang dependency is in the cache.  Need to remove it"
+            rm -rf "$CACHE_DIR"/"$cacheentry"
+            break
+          fi
+        fi
+      done
+    fi
+  fi
+done
 
 # Setup application environment
 PROFILE_PATH="$BUILD_DIR/.profile.d/swift.sh"
